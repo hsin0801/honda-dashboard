@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>客源分析 — 全省</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif;
+    background: #0f172a;
+    color: #f1f5f9;
+    min-height: 100vh;
+  }
+
+  /* ── Header ── */
+  .header {
+    padding: 16px 28px;
+    border-bottom: 1px solid #1e293b;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .header-title h1 { font-size: 17px; font-weight: 700; }
+  .header-title p { font-size: 11px; color: #475569; margin-top: 2px; }
+
+  /* ── Mode tabs ── */
+  .mode-tabs { display: flex; gap: 4px; margin-left: auto; }
+  .mode-tab {
+    padding: 7px 18px; border-radius: 8px; font-size: 13px; font-weight: 600;
+    cursor: pointer; border: 1.5px solid #1e293b; background: #1e293b; color: #64748b;
+    transition: all .15s;
+  }
+  .mode-tab.active { background: #3b82f6; border-color: #3b82f6; color: #fff; }
+
+  /* ══════════════ SINGLE MODE ══════════════ */
+  #singleMode { display: flex; flex-direction: column; }
+
+  .single-toolbar {
+    padding: 14px 28px 0;
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  }
+  .selector-wrap { position: relative; width: 240px; }
+  .selector-wrap input {
+    width: 100%; background: #1e293b; border: 1.5px solid #334155;
+    border-radius: 10px; padding: 8px 12px 8px 34px; color: #f1f5f9;
+    font-size: 14px; outline: none; transition: border-color .15s;
+  }
+  .selector-wrap input:focus { border-color: #3b82f6; }
+  .selector-wrap .ico {
+    position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+    color: #475569; font-size: 13px; pointer-events: none;
+  }
+  .dropdown {
+    position: absolute; top: calc(100% + 5px); left: 0; right: 0;
+    background: #1e293b; border: 1px solid #334155; border-radius: 10px;
+    max-height: 240px; overflow-y: auto; z-index: 200; display: none;
+    box-shadow: 0 8px 24px rgba(0,0,0,.5);
+  }
+  .dropdown.open { display: block; }
+  .dropdown-item {
+    padding: 8px 13px; cursor: pointer; font-size: 13px; color: #cbd5e1; transition: background .1s;
+  }
+  .dropdown-item:hover { background: #0f172a; }
+  .dropdown-item.active { color: #60a5fa; font-weight: 700; }
+  .dropdown::-webkit-scrollbar { width: 4px; }
+  .dropdown::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }
+
+  .loc-badge {
+    background: #1e40af; color: #bfdbfe; font-size: 13px; font-weight: 700;
+    padding: 6px 14px; border-radius: 999px; white-space: nowrap;
+  }
+
+  main { padding: 16px 28px 28px; display: flex; flex-direction: column; gap: 14px; }
+
+  .stats { display: grid; grid-template-columns: repeat(8, 1fr); gap: 10px; }
+  .stat-card { background: #1e293b; border-radius: 12px; padding: 12px 14px; }
+  .stat-card .month { font-size: 11px; color: #64748b; margin-bottom: 3px; }
+  .stat-card .total { font-size: 22px; font-weight: 800; line-height: 1; }
+  .stat-card .pills { display: flex; gap: 5px; margin-top: 6px; flex-wrap: wrap; }
+  .pill { font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 99px; }
+  .pill-n { background: #1d4ed822; color: #60a5fa; border: 1px solid #1e40af; }
+  .pill-i { background: #9a341222; color: #fb923c; border: 1px solid #9a3412; }
+  .pill-r { background: #14532d22; color: #4ade80; border: 1px solid #166534; }
+
+  .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .chart-card { background: #1e293b; border-radius: 14px; padding: 16px 16px 12px; }
+  .chart-title { font-size: 13px; font-weight: 700; color: #e2e8f0; }
+  .chart-sub { font-size: 11px; color: #475569; margin: 2px 0 12px; }
+  .chart-wrap { position: relative; height: 200px; }
+
+  .month-tabs { display: flex; gap: 5px; margin-bottom: 12px; }
+  .mtab {
+    padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 600;
+    cursor: pointer; border: 1px solid #334155; background: transparent; color: #64748b;
+    transition: all .15s;
+  }
+  .mtab:hover { color: #cbd5e1; }
+  .mtab.active { background: #f59e0b; border-color: #f59e0b; color: #0f172a; }
+
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .detail-item {
+    background: #0f172a; border-radius: 10px; padding: 10px 12px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .detail-label { font-size: 12px; color: #94a3b8; margin-bottom: 4px; }
+  .detail-bar { height: 4px; background: #1e293b; border-radius: 2px; overflow: hidden; width: 72px; }
+  .detail-fill { height: 100%; border-radius: 2px; transition: width .4s; }
+  .detail-val { font-size: 20px; font-weight: 800; margin-left: 12px; }
+
+  /* ══════════════ COMPARE MODE ══════════════ */
+  #compareMode { display: none; flex-direction: column; }
+
+  .compare-toolbar {
+    padding: 14px 28px 0;
+    display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap;
+  }
+  .compare-search-wrap { position: relative; width: 240px; flex-shrink: 0; }
+  .compare-search-wrap input {
+    width: 100%; background: #1e293b; border: 1.5px solid #334155;
+    border-radius: 10px; padding: 8px 12px 8px 34px; color: #f1f5f9;
+    font-size: 14px; outline: none; transition: border-color .15s;
+  }
+  .compare-search-wrap input:focus { border-color: #3b82f6; }
+  .compare-search-wrap .ico {
+    position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+    color: #475569; font-size: 13px; pointer-events: none;
+  }
+  .compare-dropdown {
+    position: absolute; top: calc(100% + 5px); left: 0; right: 0;
+    background: #1e293b; border: 1px solid #334155; border-radius: 10px;
+    max-height: 220px; overflow-y: auto; z-index: 200; display: none;
+    box-shadow: 0 8px 24px rgba(0,0,0,.5);
+  }
+  .compare-dropdown.open { display: block; }
+  .compare-dropdown-item {
+    padding: 8px 13px; cursor: pointer; font-size: 13px; color: #cbd5e1;
+    display: flex; align-items: center; justify-content: space-between;
+    transition: background .1s;
+  }
+  .compare-dropdown-item:hover { background: #0f172a; }
+  .compare-dropdown-item.selected { color: #60a5fa; }
+  .compare-dropdown-item .check { font-size: 12px; color: #3b82f6; }
+
+  .selected-tags {
+    display: flex; flex-wrap: wrap; gap: 7px; align-items: center; flex: 1;
+  }
+  .sel-tag {
+    display: flex; align-items: center; gap: 5px;
+    padding: 5px 10px 5px 12px; border-radius: 999px;
+    font-size: 13px; font-weight: 600; color: #fff;
+    cursor: default;
+  }
+  .sel-tag .remove {
+    cursor: pointer; font-size: 14px; opacity: .7; line-height: 1;
+    transition: opacity .1s;
+  }
+  .sel-tag .remove:hover { opacity: 1; }
+  .empty-hint { font-size: 13px; color: #475569; }
+
+  .clear-btn {
+    padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 600;
+    background: #1e293b; border: 1px solid #334155; color: #64748b;
+    cursor: pointer; white-space: nowrap; transition: all .15s; flex-shrink: 0;
+  }
+  .clear-btn:hover { border-color: #ef4444; color: #f87171; }
+
+  .compare-main { padding: 14px 28px 28px; display: flex; flex-direction: column; gap: 14px; }
+
+  .compare-charts { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .compare-chart-card { background: #1e293b; border-radius: 14px; padding: 16px 16px 12px; }
+  .cmp-chart-wrap { position: relative; height: 260px; }
+
+  .compare-table-wrap { background: #1e293b; border-radius: 14px; padding: 16px; overflow-x: auto; }
+  .compare-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .compare-table th {
+    text-align: left; padding: 8px 12px; color: #64748b; font-weight: 600;
+    border-bottom: 1px solid #0f172a; white-space: nowrap;
+  }
+  .compare-table td { padding: 8px 12px; border-bottom: 1px solid #0f172a22; }
+  .compare-table tr:last-child td { border-bottom: none; }
+  .compare-table .loc-dot {
+    display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px;
+  }
+  .no-sel {
+    text-align: center; color: #475569; padding: 60px 20px;
+    font-size: 14px; line-height: 2;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-title">
+    <h1>客源分析儀表板 — 全省</h1>
+    <p>2026年 1–8月　｜　來店客 &amp; 邀約客</p>
+  </div>
+  <div class="mode-tabs">
+    <div class="mode-tab active" id="tabSingle" onclick="setMode('single')">單一據點</div>
+    <div class="mode-tab" id="tabCompare" onclick="setMode('compare')">比較分析</div>
+  </div>
+</div>
+
+<!-- ══ SINGLE MODE ══ -->
+<div id="singleMode">
+  <div class="single-toolbar">
+    <div class="selector-wrap">
+      <span class="ico">🔍</span>
+      <input type="text" id="searchInput" placeholder="搜尋或選擇據點…" autocomplete="off">
+      <div class="dropdown" id="dropdown"></div>
+    </div>
+    <div class="loc-badge" id="locBadge">歸仁</div>
+  </div>
+  <main>
+    <div class="stats" id="stats"></div>
+    <div class="charts-row">
+      <div class="chart-card">
+        <div class="chart-title">📍 來店客趨勢</div>
+        <div class="chart-sub">專程看車・親友推薦・廣告・路過・維修保養・EVENT</div>
+        <div class="chart-wrap"><canvas id="lineNat"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">📞 邀約客趨勢</div>
+        <div class="chart-sub">介紹客・保有客・開拓・其他</div>
+        <div class="chart-wrap"><canvas id="lineInv"></canvas></div>
+      </div>
+    </div>
+    <div class="charts-row">
+      <div class="chart-card">
+        <div class="chart-title">📊 月別合計（堆疊）</div>
+        <div class="chart-sub">來店客（藍）+ 邀約客（橘）</div>
+        <div class="chart-wrap"><canvas id="barStack"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">🔍 邀約客明細</div>
+        <div class="month-tabs" id="monthTabs"></div>
+        <div class="detail-grid" id="detailGrid"></div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">🚗 領牌台數（4–8月）</div>
+      <div class="chart-sub">自然台數（藍）＋ 邀約台數（橘）｜1–3月資料不在本檔案內</div>
+      <div class="chart-wrap" style="height:160px"><canvas id="barReg"></canvas></div>
+    </div>
+  </main>
+</div>
+
+<!-- ══ COMPARE MODE ══ -->
+<div id="compareMode">
+  <div class="compare-toolbar">
+    <div class="compare-search-wrap">
+      <span class="ico">＋</span>
+      <input type="text" id="cmpSearch" placeholder="新增據點比較…" autocomplete="off">
+      <div class="compare-dropdown" id="cmpDropdown"></div>
+    </div>
+    <div class="selected-tags" id="selectedTags">
+      <span class="empty-hint">請從左側搜尋新增據點（最多 8 個）</span>
+    </div>
+    <div class="clear-btn" onclick="clearCompare()">清除全部</div>
+  </div>
+  <div class="compare-main">
+    <div id="cmpNoSel" class="no-sel">
+      尚未選擇任何據點<br>
+      <span style="font-size:12px;color:#334155">使用上方搜尋框新增據點開始比較</span>
+    </div>
+    <div id="cmpContent" style="display:none;flex-direction:column;gap:14px;">
+      <div class="compare-charts">
+        <div class="compare-chart-card">
+          <div class="chart-title">📍 來店客比較</div>
+          <div class="chart-sub">各據點每月來店客數</div>
+          <div class="cmp-chart-wrap"><canvas id="cmpNat"></canvas></div>
+        </div>
+        <div class="compare-chart-card">
+          <div class="chart-title">📞 邀約客比較</div>
+          <div class="chart-sub">各據點每月邀約客數</div>
+          <div class="cmp-chart-wrap"><canvas id="cmpInv"></canvas></div>
+        </div>
+      </div>
+      <div class="compare-chart-card" style="grid-column:1/-1">
+        <div class="chart-title">🚗 領牌台數比較（4–8月）</div>
+        <div class="chart-sub" style="font-size:11px;color:#475569;margin:2px 0 12px">各據點 4–8月 領牌合計台數</div>
+        <div class="cmp-chart-wrap" style="height:200px"><canvas id="cmpReg"></canvas></div>
+      </div>
+      <div class="compare-table-wrap">
+        <div class="chart-title" style="margin-bottom:12px">📋 數據總覽（1–5月合計）</div>
+        <table class="compare-table" id="cmpTable"></table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const months = ['1月','2月','3月','4月','5月','6月','7月','8月'];
+const detailColors = { '介紹客':'#f59e0b','保有客':'#10b981','開拓':'#8b5cf6','其他':'#64748b' };
+const PALETTE = ['#3b82f6','#f59e0b','#10b981','#ef4444','#8b5cf6','#f97316','#06b6d4','#ec4899','#84cc16','#a78bfa'];
+
+const DATA = {"基隆":{"natural":[10,3,8,6,9,9,18,17],"invited":[27,18,23,19,17,23,24,22],"detail":{"介紹客":[15,10,14,12,8,7,9,11],"保有客":[4,3,6,2,6,7,10,7],"開拓":[0,0,0,0,0,1,0,0],"其他":[8,5,3,5,3,8,5,4]}},"汐止":{"natural":[28,19,21,12,26,28,22,29],"invited":[35,18,67,24,17,46,35,26],"detail":{"介紹客":[32,16,59,18,14,36,25,17],"保有客":[2,2,6,4,3,8,6,6],"開拓":[0,0,2,1,0,2,3,0],"其他":[1,0,0,1,0,0,1,3]}},"北士科":{"natural":[50,27,37,40,49,70,74,65],"invited":[82,50,111,48,94,111,147,92],"detail":{"介紹客":[39,27,49,17,30,30,59,32],"保有客":[13,10,19,12,15,33,35,33],"開拓":[16,13,24,7,16,14,29,16],"其他":[14,0,19,12,33,34,24,11]}},"松山":{"natural":[21,24,31,16,38,54,28,18],"invited":[28,33,52,17,47,45,41,24],"detail":{"介紹客":[8,20,27,8,22,17,20,15],"保有客":[17,12,14,1,4,13,10,3],"開拓":[2,0,0,0,1,0,1,1],"其他":[1,1,11,8,20,15,10,5]}},"內湖":{"natural":[54,29,53,42,52,63,61,57],"invited":[87,58,91,45,77,85,87,54],"detail":{"介紹客":[25,20,21,16,19,30,33,20],"保有客":[30,23,31,13,31,19,20,14],"開拓":[17,5,12,5,0,9,8,4],"其他":[15,10,27,11,27,27,26,16]}},"新店":{"natural":[19,19,30,29,31,33,32,25],"invited":[53,37,72,46,61,59,36,34],"detail":{"介紹客":[13,14,24,11,14,19,14,16],"保有客":[17,11,33,12,14,13,9,4],"開拓":[12,10,5,5,6,22,11,5],"其他":[11,2,10,18,27,5,2,9]}},"宜蘭":{"natural":[51,30,38,27,33,56,42,38],"invited":[33,25,45,35,35,42,34,27],"detail":{"介紹客":[16,11,14,14,9,18,13,14],"保有客":[13,12,22,15,19,14,17,9],"開拓":[2,0,0,1,0,0,0,2],"其他":[2,2,9,5,7,10,4,2]}},"永和":{"natural":[9,9,20,8,33,44,33,29],"invited":[20,10,20,13,40,24,27,23],"detail":{"介紹客":[11,5,13,4,8,10,14,10],"保有客":[3,1,2,4,11,9,9,9],"開拓":[3,2,4,5,17,3,4,4],"其他":[3,2,1,0,4,2,0,0]}},"板橋":{"natural":[72,63,68,67,110,112,99,85],"invited":[86,49,100,71,89,87,101,81],"detail":{"介紹客":[31,22,33,31,34,39,43,38],"保有客":[36,12,35,24,31,23,32,23],"開拓":[16,15,27,16,21,19,25,17],"其他":[3,0,5,0,3,6,1,3]}},"三重":{"natural":[36,26,33,29,53,58,60,47],"invited":[39,18,44,26,39,46,47,36],"detail":{"介紹客":[17,4,12,5,12,19,23,9],"保有客":[12,7,13,3,8,18,9,6],"開拓":[10,7,15,18,18,8,15,20],"其他":[0,0,4,0,1,1,0,1]}},"新莊":{"natural":[62,35,68,62,76,106,76,79],"invited":[50,20,48,33,51,47,47,44],"detail":{"介紹客":[27,9,22,21,26,24,23,19],"保有客":[17,10,21,9,19,17,16,17],"開拓":[2,1,3,1,4,5,8,6],"其他":[4,0,2,2,2,1,0,2]}},"中和":{"natural":[37,25,37,28,0,0,0,0],"invited":[52,21,42,32,0,0,0,0],"detail":{"介紹客":[22,7,23,8,0,0,0,0],"保有客":[19,7,8,5,0,0,0,0],"開拓":[8,4,5,12,0,0,0,0],"其他":[3,3,6,7,0,0,0,0]}},"土城":{"natural":[41,17,37,33,33,61,61,41],"invited":[161,53,91,68,87,103,73,79],"detail":{"介紹客":[34,27,36,40,41,45,41,47],"保有客":[36,21,55,25,34,41,30,29],"開拓":[2,1,0,0,0,1,0,0],"其他":[89,4,0,3,12,16,2,3]}},"經國":{"natural":[52,44,62,44,45,57,41,32],"invited":[40,25,56,45,51,62,34,40],"detail":{"介紹客":[17,9,25,6,8,19,14,13],"保有客":[11,11,17,12,16,12,5,6],"開拓":[1,0,1,1,2,4,1,2],"其他":[11,5,13,26,25,27,14,19]}},"桃園":{"natural":[39,34,39,30,41,45,53,43],"invited":[66,47,73,57,66,84,73,70],"detail":{"介紹客":[14,12,17,17,19,32,31,20],"保有客":[25,16,24,16,20,21,12,14],"開拓":[5,2,5,2,3,8,1,4],"其他":[22,17,27,22,24,23,29,32]}},"中壢":{"natural":[65,46,59,47,82,81,45,49],"invited":[29,29,48,12,22,25,42,22],"detail":{"介紹客":[16,9,15,5,11,13,21,11],"保有客":[7,16,24,5,9,11,15,2],"開拓":[0,0,1,1,0,1,0,0],"其他":[6,4,8,1,2,0,6,9]}},"平鎮":{"natural":[34,30,33,21,28,55,51,53],"invited":[32,33,38,26,40,39,48,35],"detail":{"介紹客":[13,9,10,11,9,5,7,6],"保有客":[16,20,19,12,18,18,21,13],"開拓":[1,1,2,1,2,4,3,1],"其他":[2,3,7,2,11,12,17,15]}},"八德":{"natural":[22,19,31,24,18,30,29,39],"invited":[48,29,39,26,43,45,33,30],"detail":{"介紹客":[17,7,10,10,15,8,11,10],"保有客":[16,15,17,4,5,21,9,8],"開拓":[1,1,2,1,0,0,0,0],"其他":[14,6,10,11,23,16,13,12]}},"竹北":{"natural":[40,35,67,51,86,115,67,59],"invited":[32,24,34,13,20,32,40,23],"detail":{"介紹客":[11,4,6,4,6,13,16,10],"保有客":[20,18,25,8,13,18,23,12],"開拓":[1,0,1,1,0,0,1,0],"其他":[0,2,2,0,1,1,0,1]}},"竹東":{"natural":[7,8,6,9,8,15,14,16],"invited":[26,19,23,18,19,22,16,5],"detail":{"介紹客":[9,5,8,5,6,8,5,2],"保有客":[12,9,12,8,9,10,6,2],"開拓":[1,2,1,4,2,2,5,1],"其他":[4,3,2,1,2,2,0,0]}},"新竹":{"natural":[65,43,88,63,86,109,78,66],"invited":[52,30,68,37,63,49,48,35],"detail":{"介紹客":[21,9,23,12,24,16,22,20],"保有客":[25,12,17,7,21,11,12,4],"開拓":[0,0,0,1,0,0,0,0],"其他":[6,9,28,17,18,22,14,11]}},"頭份":{"natural":[24,17,34,24,34,46,40,27],"invited":[28,16,20,23,25,23,16,21],"detail":{"介紹客":[14,8,15,12,14,13,12,19],"保有客":[12,7,4,11,10,9,4,2],"開拓":[0,1,1,0,0,0,0,0],"其他":[2,0,0,0,1,1,0,0]}},"苗栗":{"natural":[17,11,13,15,13,24,28,23],"invited":[52,46,72,37,43,86,74,48],"detail":{"介紹客":[24,30,37,24,24,49,44,28],"保有客":[23,16,35,10,12,30,25,17],"開拓":[0,0,0,0,0,0,0,0],"其他":[5,0,0,3,7,7,5,3]}},"花蓮":{"natural":[10,13,16,19,22,33,16,22],"invited":[23,9,10,8,28,15,15,12],"detail":{"介紹客":[17,8,8,5,16,9,9,8],"保有客":[3,1,2,2,11,6,4,4],"開拓":[0,0,0,0,0,0,0,0],"其他":[3,0,0,1,1,0,2,0]}},"台東":{"natural":[17,11,14,6,16,13,16,14],"invited":[14,7,7,9,9,10,10,8],"detail":{"介紹客":[4,7,2,5,5,8,6,2],"保有客":[2,0,5,4,4,1,2,3],"開拓":[2,0,0,0,0,0,2,3],"其他":[6,0,0,0,0,1,0,0]}},"北台中":{"natural":[32,23,34,22,35,47,65,62],"invited":[23,19,33,11,34,28,35,29],"detail":{"介紹客":[4,12,12,5,12,9,14,13],"保有客":[16,6,19,5,22,16,18,9],"開拓":[2,0,0,0,0,0,0,1],"其他":[1,1,2,1,0,3,3,6]}},"中台中":{"natural":[70,37,53,38,49,98,77,51],"invited":[32,19,29,22,34,33,67,32],"detail":{"介紹客":[26,17,24,17,24,24,58,26],"保有客":[5,1,4,4,9,3,5,3],"開拓":[0,0,0,0,1,2,0,0],"其他":[1,1,1,1,0,4,4,3]}},"南台中":{"natural":[49,27,41,40,46,52,45,41],"invited":[30,19,31,19,34,27,25,23],"detail":{"介紹客":[15,9,13,9,11,9,7,9],"保有客":[4,5,3,1,6,7,8,4],"開拓":[0,0,3,1,0,0,0,1],"其他":[11,5,12,8,17,11,10,9]}},"大里":{"natural":[21,20,29,22,20,38,33,26],"invited":[31,18,29,14,33,38,26,20],"detail":{"介紹客":[21,11,22,8,17,25,12,10],"保有客":[9,4,6,5,9,7,5,7],"開拓":[1,0,0,1,1,2,1,3],"其他":[0,3,1,0,6,4,8,0]}},"豐原":{"natural":[27,18,33,21,23,38,33,15],"invited":[52,47,62,33,45,38,45,37],"detail":{"介紹客":[38,39,60,31,34,36,39,28],"保有客":[11,3,1,1,11,2,3,3],"開拓":[1,0,0,0,0,0,1,0],"其他":[2,5,1,1,0,0,2,6]}},"西台中":{"natural":[17,20,21,30,27,45,32,40],"invited":[80,37,58,41,84,63,77,50],"detail":{"介紹客":[37,16,28,16,23,24,41,20],"保有客":[36,20,29,16,42,18,23,12],"開拓":[0,0,0,0,0,2,2,5],"其他":[7,1,1,9,19,19,11,13]}},"沙鹿":{"natural":[44,27,35,37,42,47,52,24],"invited":[68,50,90,62,77,83,76,61],"detail":{"介紹客":[32,33,61,40,36,55,51,38],"保有客":[31,17,26,10,20,17,16,16],"開拓":[0,0,0,0,0,0,0,0],"其他":[5,0,3,12,21,11,9,7]}},"中華":{"natural":[22,9,15,19,15,20,21,6],"invited":[41,23,32,24,41,39,59,42],"detail":{"介紹客":[39,22,31,21,38,34,53,38],"保有客":[0,0,1,2,2,1,4,2],"開拓":[0,0,0,0,1,0,0,1],"其他":[2,1,0,1,0,4,2,1]}},"太平":{"natural":[14,5,23,26,28,32,28,16],"invited":[38,15,23,23,17,28,20,15],"detail":{"介紹客":[28,8,18,9,12,13,12,14],"保有客":[10,7,4,3,4,12,4,1],"開拓":[0,0,1,9,1,3,1,0],"其他":[0,0,0,2,0,0,3,0]}},"草屯":{"natural":[12,6,29,21,23,21,27,8],"invited":[42,22,34,16,33,44,46,32],"detail":{"介紹客":[15,11,14,6,19,22,33,15],"保有客":[25,10,18,9,7,12,7,12],"開拓":[1,0,1,0,0,0,0,0],"其他":[1,1,1,1,7,10,6,5]}},"彰化":{"natural":[16,4,27,25,27,30,38,27],"invited":[30,19,40,16,34,33,47,21],"detail":{"介紹客":[15,5,22,13,20,11,32,17],"保有客":[9,3,12,2,8,14,14,3],"開拓":[0,0,0,0,0,0,0,1],"其他":[6,11,6,1,6,8,1,0]}},"員林":{"natural":[43,22,46,30,48,66,70,60],"invited":[41,24,43,19,36,64,49,28],"detail":{"介紹客":[20,16,24,12,27,47,39,24],"保有客":[13,2,14,7,9,12,9,4],"開拓":[0,0,0,0,0,2,0,0],"其他":[8,6,5,0,0,3,1,0]}},"斗六":{"natural":[26,15,19,7,16,29,17,26],"invited":[32,20,33,17,26,35,40,24],"detail":{"介紹客":[16,15,25,11,14,22,30,17],"保有客":[14,4,7,3,10,11,10,7],"開拓":[0,0,0,1,2,1,0,0],"其他":[2,1,1,2,0,1,0,0]}},"斗南":{"natural":[49,13,29,20,35,41,32,30],"invited":[28,14,24,7,19,20,22,20],"detail":{"介紹客":[13,9,13,3,9,4,9,8],"保有客":[15,4,3,1,3,5,5,4],"開拓":[0,0,0,0,0,0,0,2],"其他":[0,1,8,3,7,11,8,6]}},"嘉義":{"natural":[54,23,67,52,74,70,62,52],"invited":[56,31,45,23,46,54,60,43],"detail":{"介紹客":[24,16,29,13,25,27,34,20],"保有客":[28,13,15,9,19,24,26,18],"開拓":[1,1,1,0,1,0,0,4],"其他":[3,1,0,1,1,3,0,1]}},"永康":{"natural":[113,100,137,97,136,157,178,132],"invited":[87,48,65,52,60,68,78,53],"detail":{"介紹客":[48,19,36,23,30,26,49,29],"保有客":[6,2,4,4,8,9,3,6],"開拓":[0,0,0,0,0,0,1,0],"其他":[33,27,25,25,22,33,25,18]}},"歸仁":{"natural":[39,30,30,33,33,62,43,33],"invited":[31,28,40,22,27,34,32,28],"detail":{"介紹客":[16,12,25,10,11,17,17,11],"保有客":[4,6,3,6,6,4,3,6],"開拓":[0,0,1,0,2,0,0,2],"其他":[11,10,11,6,8,13,12,9]}},"西台南":{"natural":[50,50,61,54,71,75,91,63],"invited":[73,31,69,34,61,91,61,39],"detail":{"介紹客":[41,23,37,22,23,34,33,18],"保有客":[28,8,23,10,18,40,17,11],"開拓":[1,0,0,0,0,0,0,0],"其他":[3,0,9,2,20,17,11,10]}},"東台南":{"natural":[46,43,52,38,39,49,51,42],"invited":[45,17,48,42,40,64,55,45],"detail":{"介紹客":[21,10,29,20,20,26,30,28],"保有客":[23,7,15,16,16,26,9,7],"開拓":[1,0,1,0,1,1,4,1],"其他":[0,0,3,6,3,11,12,9]}},"左營":{"natural":[46,44,51,52,65,81,79,59],"invited":[65,42,65,33,74,81,67,49],"detail":{"介紹客":[44,30,38,18,28,37,34,24],"保有客":[17,6,19,1,9,18,4,7],"開拓":[0,0,0,0,1,0,0,1],"其他":[4,6,8,14,36,26,29,17]}},"大順":{"natural":[31,17,33,30,20,47,43,31],"invited":[33,33,42,20,49,34,35,31],"detail":{"介紹客":[18,19,27,15,32,22,28,26],"保有客":[14,11,12,5,12,11,4,4],"開拓":[1,1,1,0,1,0,2,1],"其他":[0,2,2,0,4,1,1,0]}},"九如":{"natural":[53,32,57,38,45,49,46,43],"invited":[62,27,71,41,60,63,67,63],"detail":{"介紹客":[33,20,51,28,45,44,47,44],"保有客":[25,5,14,7,8,15,10,15],"開拓":[4,1,6,6,5,4,9,4],"其他":[0,1,0,0,2,0,1,0]}},"前鎮":{"natural":[42,26,35,31,43,65,45,39],"invited":[49,25,23,15,27,32,22,24],"detail":{"介紹客":[38,11,15,7,20,22,11,18],"保有客":[10,14,8,7,7,10,11,5],"開拓":[1,0,0,1,0,0,0,1],"其他":[0,0,0,0,0,0,0,0]}},"民族":{"natural":[41,21,36,23,29,30,30,37],"invited":[27,11,21,12,44,20,28,29],"detail":{"介紹客":[15,7,15,8,16,6,8,11],"保有客":[10,4,4,2,5,3,3,7],"開拓":[1,0,0,0,10,1,2,1],"其他":[1,0,2,2,13,10,15,10]}},"鳳山":{"natural":[51,37,54,41,48,66,33,43],"invited":[43,50,63,35,48,71,44,40],"detail":{"介紹客":[12,25,14,16,20,26,16,16],"保有客":[16,9,17,12,16,19,16,12],"開拓":[3,2,9,0,5,10,6,4],"其他":[12,14,23,7,7,16,6,8]}},"屏東":{"natural":[21,13,19,13,21,34,21,17],"invited":[54,32,56,27,56,39,46,35],"detail":{"介紹客":[16,6,14,5,24,15,15,8],"保有客":[24,20,37,19,26,17,23,20],"開拓":[2,0,4,1,0,0,0,0],"其他":[12,6,1,2,6,7,8,7]}},"潮州":{"natural":[14,5,13,10,12,20,6,18],"invited":[26,18,34,15,14,20,14,16],"detail":{"介紹客":[4,2,5,3,2,10,6,5],"保有客":[5,6,9,2,2,8,1,1],"開拓":[10,4,10,4,8,1,7,0],"其他":[7,6,10,6,2,1,0,10]}}};
+
+const REG_DATA = {"基隆":{"nat":[0,0,0,3,4,1,10,1],"inv":[0,0,0,11,9,19,17,11],"total":[0,0,0,14,13,20,27,12]},"汐止":{"nat":[0,0,0,3,6,9,16,7],"inv":[0,0,0,17,14,29,23,20],"total":[0,0,0,20,20,38,39,27]},"北士科":{"nat":[0,0,0,13,16,20,32,15],"inv":[0,0,0,33,46,85,84,61],"total":[0,0,0,46,62,105,116,76]},"松山":{"nat":[0,0,0,6,12,11,12,5],"inv":[0,0,0,8,15,25,13,15],"total":[0,0,0,14,27,36,25,20]},"內湖":{"nat":[0,0,0,7,14,21,15,16],"inv":[0,0,0,22,23,60,54,27],"total":[0,0,0,29,37,81,69,43]},"新店":{"nat":[0,0,0,5,9,10,15,8],"inv":[0,0,0,11,10,31,20,8],"total":[0,0,0,16,19,41,35,16]},"宜蘭":{"nat":[0,0,0,5,6,9,13,8],"inv":[0,0,0,18,13,32,32,16],"total":[0,0,0,23,19,41,45,24]},"永和":{"nat":[0,0,0,2,4,16,15,2],"inv":[0,0,0,3,5,27,19,9],"total":[0,0,0,5,9,43,34,11]},"板橋":{"nat":[0,0,0,10,23,27,24,19],"inv":[0,0,0,34,32,73,81,39],"total":[0,0,0,44,55,100,105,58]},"三重":{"nat":[0,0,0,3,7,13,15,4],"inv":[0,0,0,11,14,36,29,10],"total":[0,0,0,14,21,49,44,14]},"新莊":{"nat":[0,0,0,12,11,18,24,6],"inv":[0,0,0,15,20,40,36,27],"total":[0,0,0,27,31,58,60,33]},"中和":{"nat":[0,0,0,4,0,0,0,0],"inv":[0,0,0,6,0,0,0,0],"total":[0,0,0,10,0,0,0,0]},"土城":{"nat":[0,0,0,4,6,16,7,9],"inv":[0,0,0,26,85,52,47,43],"total":[0,0,0,30,91,68,54,52]},"經國":{"nat":[0,0,0,11,14,25,16,10],"inv":[0,0,0,23,20,30,18,30],"total":[0,0,0,34,34,55,34,40]},"桃園":{"nat":[0,0,0,11,7,14,27,12],"inv":[0,0,0,17,25,51,42,34],"total":[0,0,0,28,32,65,69,46]},"中壢":{"nat":[0,0,0,12,16,37,16,21],"inv":[0,0,0,13,13,23,22,22],"total":[0,0,0,25,29,60,38,43]},"平鎮":{"nat":[0,0,0,14,8,18,24,16],"inv":[0,0,0,5,10,23,15,15],"total":[0,0,0,19,18,41,39,31]},"八德":{"nat":[0,0,0,8,2,7,7,5],"inv":[0,0,0,10,10,14,10,13],"total":[0,0,0,18,12,21,17,18]},"竹北":{"nat":[0,0,0,16,15,30,27,15],"inv":[0,0,0,9,8,24,33,20],"total":[0,0,0,25,23,54,60,35]},"竹東":{"nat":[0,0,0,6,7,2,4,8],"inv":[0,0,0,12,9,20,14,7],"total":[0,0,0,18,16,22,18,15]},"新竹":{"nat":[0,0,0,8,17,14,25,14],"inv":[0,0,0,17,17,36,36,15],"total":[0,0,0,25,34,50,61,29]},"頭份":{"nat":[0,0,0,5,8,12,11,6],"inv":[0,0,0,9,10,14,12,8],"total":[0,0,0,14,18,26,23,14]},"苗栗":{"nat":[0,0,0,4,3,7,11,4],"inv":[0,0,0,16,21,42,46,30],"total":[0,0,0,20,24,49,57,34]},"花蓮":{"nat":[0,0,0,3,4,9,8,3],"inv":[0,0,0,0,3,11,14,6],"total":[0,0,0,3,7,20,22,9]},"台東":{"nat":[0,0,0,2,3,6,3,3],"inv":[0,0,0,3,3,5,6,2],"total":[0,0,0,5,6,11,9,5]},"北台中":{"nat":[0,0,0,15,15,16,27,20],"inv":[0,0,0,12,15,34,28,15],"total":[0,0,0,27,30,50,55,35]},"中台中":{"nat":[0,0,0,16,12,26,31,16],"inv":[0,0,0,22,29,26,26,21],"total":[0,0,0,38,41,52,57,37]},"南台中":{"nat":[0,0,0,4,13,15,15,8],"inv":[0,0,0,7,11,16,18,10],"total":[0,0,0,11,24,31,33,18]},"大里":{"nat":[0,0,0,5,10,16,16,11],"inv":[0,0,0,14,17,26,24,15],"total":[0,0,0,19,27,42,40,26]},"豐原":{"nat":[0,0,0,6,5,11,15,9],"inv":[0,0,0,21,25,38,37,26],"total":[0,0,0,27,30,49,52,35]},"西台中":{"nat":[0,0,0,4,7,10,6,12],"inv":[0,0,0,14,22,38,40,19],"total":[0,0,0,18,29,48,46,31]},"沙鹿":{"nat":[0,0,0,6,7,13,12,5],"inv":[0,0,0,29,25,48,52,40],"total":[0,0,0,35,32,61,64,45]},"中華":{"nat":[0,0,0,2,4,7,8,5],"inv":[0,0,0,18,16,27,33,23],"total":[0,0,0,20,20,34,41,28]},"太平":{"nat":[0,0,0,5,6,8,6,5],"inv":[0,0,0,9,9,18,16,10],"total":[0,0,0,14,15,26,22,15]},"草屯":{"nat":[0,0,0,8,5,4,15,6],"inv":[0,0,0,12,19,30,25,14],"total":[0,0,0,20,24,34,40,20]},"彰化":{"nat":[0,0,0,6,4,7,7,4],"inv":[0,0,0,11,8,26,34,12],"total":[0,0,0,17,12,33,41,16]},"員林":{"nat":[0,0,0,7,7,13,16,4],"inv":[0,0,0,9,24,38,34,12],"total":[0,0,0,16,31,51,50,16]},"斗六":{"nat":[0,0,0,2,2,6,4,5],"inv":[0,0,0,2,13,27,23,11],"total":[0,0,0,4,15,33,27,16]},"斗南":{"nat":[0,0,0,6,3,15,13,15],"inv":[0,0,0,2,8,8,16,10],"total":[0,0,0,8,11,23,29,25]},"嘉義":{"nat":[0,0,0,12,21,18,27,17],"inv":[0,0,0,15,21,41,40,34],"total":[0,0,0,27,42,59,67,51]},"永康":{"nat":[0,0,0,13,28,36,44,25],"inv":[0,0,0,27,16,54,41,36],"total":[0,0,0,40,44,90,85,61]},"歸仁":{"nat":[0,0,0,3,12,15,19,10],"inv":[0,0,0,17,10,25,22,18],"total":[0,0,0,20,22,40,41,28]},"西台南":{"nat":[0,0,0,10,9,25,24,12],"inv":[0,0,0,16,12,31,23,13],"total":[0,0,0,26,21,56,47,25]},"東台南":{"nat":[0,0,0,6,11,17,16,13],"inv":[0,0,0,14,20,43,45,21],"total":[0,0,0,20,31,60,61,34]},"左營":{"nat":[0,0,0,14,9,24,20,17],"inv":[0,0,0,18,19,41,45,22],"total":[0,0,0,32,28,65,65,39]},"大順":{"nat":[0,0,0,5,3,9,10,10],"inv":[0,0,0,12,16,22,27,18],"total":[0,0,0,17,19,31,37,28]},"九如":{"nat":[0,0,0,7,10,14,17,8],"inv":[0,0,0,7,21,27,27,15],"total":[0,0,0,14,31,41,44,23]},"前鎮":{"nat":[0,0,0,6,6,14,10,7],"inv":[0,0,0,10,7,17,12,15],"total":[0,0,0,16,13,31,22,22]},"民族":{"nat":[0,0,0,8,7,19,12,13],"inv":[0,0,0,7,11,13,13,10],"total":[0,0,0,15,18,32,25,23]},"鳳山":{"nat":[0,0,0,9,6,18,9,10],"inv":[0,0,0,20,27,41,34,30],"total":[0,0,0,29,33,59,43,40]},"屏東":{"nat":[0,0,0,4,1,15,16,10],"inv":[0,0,0,22,20,38,34,22],"total":[0,0,0,26,21,53,50,32]},"潮州":{"nat":[0,0,0,2,2,6,3,3],"inv":[0,0,0,7,7,13,10,16],"total":[0,0,0,9,9,19,13,19]}};
+
+const locations = Object.keys(DATA);
+
+// ══ MODE SWITCH ══════════════════════════════════════
+function setMode(mode) {
+  document.getElementById('tabSingle').classList.toggle('active', mode==='single');
+  document.getElementById('tabCompare').classList.toggle('active', mode==='compare');
+  document.getElementById('singleMode').style.display = mode==='single' ? 'flex' : 'none';
+  document.getElementById('compareMode').style.display = mode==='compare' ? 'flex' : 'none';
+  if (mode==='compare') renderCompare();
+}
+
+// ══ SINGLE MODE ══════════════════════════════════════
+let currentLoc = '歸仁';
+let currentMonth = 0;
+let lineNatChart, lineInvChart, barStackChart, barRegChart;
+
+const searchInput = document.getElementById('searchInput');
+const dropdown = document.getElementById('dropdown');
+
+function buildDropdown(filter='') {
+  const q = filter.toLowerCase();
+  const filtered = q ? locations.filter(l => l.includes(q)) : locations;
+  dropdown.innerHTML = filtered.map(l =>
+    `<div class="dropdown-item${l===currentLoc?' active':''}" data-loc="${l}">${l}</div>`
+  ).join('');
+}
+searchInput.addEventListener('focus', () => { buildDropdown(searchInput.value); dropdown.classList.add('open'); });
+searchInput.addEventListener('input', () => { buildDropdown(searchInput.value); dropdown.classList.add('open'); });
+dropdown.addEventListener('click', e => {
+  const item = e.target.closest('.dropdown-item');
+  if (!item) return;
+  currentLoc = item.dataset.loc;
+  searchInput.value = '';
+  dropdown.classList.remove('open');
+  document.getElementById('locBadge').textContent = currentLoc;
+  render();
+});
+document.addEventListener('click', e => {
+  if (!e.target.closest('.selector-wrap')) dropdown.classList.remove('open');
+  if (!e.target.closest('.compare-search-wrap')) document.getElementById('cmpDropdown').classList.remove('open');
+});
+
+// Month tabs
+const monthTabsEl = document.getElementById('monthTabs');
+months.forEach((m, i) => {
+  const t = document.createElement('div');
+  t.className = 'mtab' + (i===0?' active':'');
+  t.textContent = m;
+  t.onclick = () => {
+    document.querySelectorAll('.mtab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    currentMonth = i;
+    renderDetail();
+  };
+  monthTabsEl.appendChild(t);
+});
+
+function render() {
+  renderStats(); renderLines(); renderBar(); renderDetail(); renderRegChart();
+}
+function renderStats() {
+  const d = DATA[currentLoc];
+  const r = REG_DATA[currentLoc];
+  document.getElementById('stats').innerHTML = months.map((m,i) => {
+    const total = d.natural[i] + d.invited[i];
+    const regTotal = (r && i >= 3) ? r.total[i] : 0;
+    const regPill = regTotal > 0 ? `<span class="pill pill-r">領牌 ${regTotal}</span>` : '';
+    return `<div class="stat-card">
+      <div class="month">${m}</div>
+      <div class="total">${total}</div>
+      <div class="pills">
+        <span class="pill pill-n">來店 ${d.natural[i]}</span>
+        <span class="pill pill-i">邀約 ${d.invited[i]}</span>
+        ${regPill}
+      </div>
+    </div>`;
+  }).join('');
+}
+function mkLineOpts(label) {
+  return {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>` ${label}：${c.parsed.y}`}} },
+    scales:{
+      x:{grid:{color:'#1e293b'},ticks:{color:'#64748b',font:{size:12}}},
+      y:{beginAtZero:true,grid:{color:'#1e293b'},ticks:{color:'#64748b',font:{size:11}}}
+    }
+  };
+}
+function renderLines() {
+  const d = DATA[currentLoc];
+  if (lineNatChart) lineNatChart.destroy();
+  if (lineInvChart) lineInvChart.destroy();
+  const mkDs = (data,color) => [{ data, borderColor:color, backgroundColor:color+'22',
+    borderWidth:2.5, pointRadius:5, pointHoverRadius:8, pointBackgroundColor:color, fill:true, tension:0.35 }];
+  lineNatChart = new Chart(document.getElementById('lineNat'),{ type:'line', data:{labels:months,datasets:mkDs(d.natural,'#3b82f6')}, options:mkLineOpts('來店客') });
+  lineInvChart = new Chart(document.getElementById('lineInv'),{ type:'line', data:{labels:months,datasets:mkDs(d.invited,'#f97316')}, options:mkLineOpts('邀約客') });
+}
+function renderBar() {
+  const d = DATA[currentLoc];
+  if (barStackChart) barStackChart.destroy();
+  barStackChart = new Chart(document.getElementById('barStack'),{
+    type:'bar',
+    data:{ labels:months, datasets:[
+      {label:'來店客',data:d.natural,backgroundColor:'#3b82f6cc',borderSkipped:false,borderRadius:0},
+      {label:'邀約客',data:d.invited,backgroundColor:'#f97316cc',borderSkipped:false,borderRadius:{topLeft:5,topRight:5}}
+    ]},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{position:'bottom',labels:{color:'#94a3b8',font:{size:12},usePointStyle:true,padding:14}},
+        tooltip:{callbacks:{label:c=>` ${c.dataset.label}：${c.parsed.y}`,footer:items=>`合計：${items.reduce((s,i)=>s+i.parsed.y,0)}`}}
+      },
+      scales:{
+        x:{stacked:true,grid:{display:false},ticks:{color:'#64748b',font:{size:12}}},
+        y:{stacked:true,grid:{color:'#0f172a'},ticks:{color:'#64748b',font:{size:11}},beginAtZero:true}
+      }
+    }
+  });
+}
+function renderDetail() {
+  const d = DATA[currentLoc];
+  const cats = Object.keys(d.detail);
+  const vals = cats.map(c => d.detail[c][currentMonth]);
+  const max = Math.max(...vals,1);
+  document.getElementById('detailGrid').innerHTML = cats.map((cat,i) => {
+    const pct = Math.round(vals[i]/max*100);
+    const color = detailColors[cat];
+    return `<div class="detail-item">
+      <div style="flex:1">
+        <div class="detail-label">${cat}</div>
+        <div class="detail-bar"><div class="detail-fill" style="width:${pct}%;background:${color}"></div></div>
+      </div>
+      <div class="detail-val" style="color:${color};margin-left:12px">${vals[i]}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderRegChart() {
+  if (barRegChart) barRegChart.destroy();
+  const r = REG_DATA[currentLoc];
+  const labels = ['4月','5月','6月','7月','8月'];
+  const natData  = r ? [r.nat[3], r.nat[4], r.nat[5], r.nat[6], r.nat[7]]   : [0,0,0,0,0];
+  const invData  = r ? [r.inv[3], r.inv[4], r.inv[5], r.inv[6], r.inv[7]]   : [0,0,0,0,0];
+  barRegChart = new Chart(document.getElementById('barReg'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label:'自然台數', data:natData, backgroundColor:'#3b82f6cc', borderRadius:4, borderSkipped:false },
+        { label:'邀約台數', data:invData, backgroundColor:'#f97316cc', borderRadius:4, borderSkipped:false },
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{ position:'right', labels:{color:'#94a3b8',font:{size:12},usePointStyle:true,padding:14} },
+        tooltip:{ callbacks:{
+          title: ctx => `${currentLoc} ${ctx[0].label}`,
+          label: c => ` ${c.dataset.label}：${c.parsed.y}`,
+          footer: items => `合計：${items.reduce((s,i)=>s+i.parsed.y,0)}`
+        }}
+      },
+      scales:{
+        x:{ grid:{display:false}, ticks:{color:'#64748b',font:{size:13}} },
+        y:{ beginAtZero:true, grid:{color:'#1e293b'}, ticks:{color:'#64748b',font:{size:11}} }
+      }
+    }
+  });
+}
+
+// ══ COMPARE MODE ═════════════════════════════════════
+let selectedLocs = [];
+let cmpNatChart, cmpInvChart, cmpRegChart;
+
+const cmpSearch = document.getElementById('cmpSearch');
+const cmpDropdown = document.getElementById('cmpDropdown');
+
+function buildCmpDropdown(filter='') {
+  const q = filter.toLowerCase();
+  const filtered = q ? locations.filter(l => l.includes(q)) : locations;
+  cmpDropdown.innerHTML = filtered.map(l => {
+    const sel = selectedLocs.includes(l);
+    return `<div class="compare-dropdown-item${sel?' selected':''}" data-loc="${l}">
+      <span>${l}</span>
+      ${sel ? '<span class="check">✓</span>' : ''}
+    </div>`;
+  }).join('');
+}
+cmpSearch.addEventListener('focus', () => { buildCmpDropdown(cmpSearch.value); cmpDropdown.classList.add('open'); });
+cmpSearch.addEventListener('input', () => { buildCmpDropdown(cmpSearch.value); cmpDropdown.classList.add('open'); });
+cmpDropdown.addEventListener('click', e => {
+  const item = e.target.closest('.compare-dropdown-item');
+  if (!item) return;
+  toggleCompare(item.dataset.loc);
+  buildCmpDropdown(cmpSearch.value);
+});
+
+function toggleCompare(loc) {
+  if (selectedLocs.includes(loc)) {
+    selectedLocs = selectedLocs.filter(l => l !== loc);
+  } else {
+    if (selectedLocs.length >= 8) return;
+    selectedLocs.push(loc);
+  }
+  renderTags();
+  renderCompare();
+}
+
+function renderTags() {
+  const el = document.getElementById('selectedTags');
+  if (!selectedLocs.length) {
+    el.innerHTML = '<span class="empty-hint">請從左側搜尋新增據點（最多 8 個）</span>';
+    return;
+  }
+  el.innerHTML = selectedLocs.map((loc, i) => {
+    const color = PALETTE[i % PALETTE.length];
+    return `<div class="sel-tag" style="background:${color}22;border:1px solid ${color};color:${color}">
+      ${loc}
+      <span class="remove" onclick="toggleCompare('${loc}')">×</span>
+    </div>`;
+  }).join('');
+}
+
+function clearCompare() {
+  selectedLocs = [];
+  cmpSearch.value = '';
+  renderTags();
+  renderCompare();
+}
+
+function renderCompare() {
+  const noSel = document.getElementById('cmpNoSel');
+  const content = document.getElementById('cmpContent');
+  if (!selectedLocs.length) {
+    noSel.style.display = 'block';
+    content.style.display = 'none';
+    return;
+  }
+  noSel.style.display = 'none';
+  content.style.display = 'flex';
+
+  // Charts
+  if (cmpNatChart) cmpNatChart.destroy();
+  if (cmpInvChart) cmpInvChart.destroy();
+  if (cmpRegChart) cmpRegChart.destroy();
+
+  const mkDs = (key) => selectedLocs.map((loc, i) => ({
+    label: loc,
+    data: DATA[loc][key],
+    borderColor: PALETTE[i % PALETTE.length],
+    backgroundColor: PALETTE[i % PALETTE.length] + '22',
+    borderWidth: 2.5,
+    pointRadius: 5,
+    pointHoverRadius: 8,
+    pointBackgroundColor: PALETTE[i % PALETTE.length],
+    fill: false,
+    tension: 0.35,
+  }));
+
+  const cmpOpts = {
+    responsive:true, maintainAspectRatio:false,
+    interaction:{ mode:'index', intersect:false },
+    plugins:{
+      legend:{ position:'bottom', labels:{color:'#94a3b8',font:{size:12},usePointStyle:true,padding:12} },
+      tooltip:{ callbacks:{ label:c=>` ${c.dataset.label}：${c.parsed.y}` } }
+    },
+    scales:{
+      x:{grid:{color:'#1e293b'},ticks:{color:'#64748b',font:{size:12}}},
+      y:{beginAtZero:true,grid:{color:'#1e293b'},ticks:{color:'#64748b',font:{size:11}}}
+    }
+  };
+
+  cmpNatChart = new Chart(document.getElementById('cmpNat'),{ type:'line', data:{labels:months,datasets:mkDs('natural')}, options:cmpOpts });
+  cmpInvChart = new Chart(document.getElementById('cmpInv'),{ type:'line', data:{labels:months,datasets:mkDs('invited')}, options:cmpOpts });
+
+  // Reg compare chart (grouped bar: x=locations, datasets=4–7月)
+  const regLabels = selectedLocs;
+  const reg4 = selectedLocs.map(loc => (REG_DATA[loc] ? REG_DATA[loc].total[3] : 0));
+  const reg5 = selectedLocs.map(loc => (REG_DATA[loc] ? REG_DATA[loc].total[4] : 0));
+  const reg6 = selectedLocs.map(loc => (REG_DATA[loc] ? REG_DATA[loc].total[5] : 0));
+  const reg7 = selectedLocs.map(loc => (REG_DATA[loc] ? REG_DATA[loc].total[6] : 0));
+  const reg8 = selectedLocs.map(loc => (REG_DATA[loc] ? REG_DATA[loc].total[7] : 0));
+  cmpRegChart = new Chart(document.getElementById('cmpReg'), {
+    type: 'bar',
+    data: {
+      labels: regLabels,
+      datasets: [
+        { label:'4月領牌', data:reg4, backgroundColor:'#10b981cc', borderRadius:4, borderSkipped:false },
+        { label:'5月領牌', data:reg5, backgroundColor:'#34d399cc', borderRadius:4, borderSkipped:false },
+        { label:'6月領牌', data:reg6, backgroundColor:'#06b6d4cc', borderRadius:4, borderSkipped:false },
+        { label:'7月領牌', data:reg7, backgroundColor:'#818cf8cc', borderRadius:4, borderSkipped:false },
+        { label:'8月領牌', data:reg8, backgroundColor:'#f472b6cc', borderRadius:4, borderSkipped:false },
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{ position:'bottom', labels:{color:'#94a3b8',font:{size:12},usePointStyle:true,padding:12} },
+        tooltip:{ callbacks:{ label:c=>` ${c.dataset.label}：${c.parsed.y}` } }
+      },
+      scales:{
+        x:{ grid:{display:false}, ticks:{color:'#64748b',font:{size:12}} },
+        y:{ beginAtZero:true, grid:{color:'#1e293b'}, ticks:{color:'#64748b',font:{size:11}} }
+      }
+    }
+  });
+
+  // Table
+  const table = document.getElementById('cmpTable');
+  const sum = (arr) => arr.reduce((a,b)=>a+b,0);
+  table.innerHTML = `
+    <thead><tr>
+      <th>據點</th>
+      ${months.map(m=>`<th style="text-align:right">${m}（來/邀）</th>`).join('')}
+      <th style="text-align:right">合計來店</th>
+      <th style="text-align:right">合計邀約</th>
+      <th style="text-align:right;color:#4ade80">4月領牌</th>
+      <th style="text-align:right;color:#4ade80">5月領牌</th>
+      <th style="text-align:right;color:#4ade80">6月領牌</th>
+      <th style="text-align:right;color:#4ade80">7月領牌</th>
+      <th style="text-align:right;color:#4ade80">8月領牌</th>
+    </tr></thead>
+    <tbody>
+      ${selectedLocs.map((loc,i) => {
+        const d = DATA[loc];
+        const r = REG_DATA[loc];
+        const color = PALETTE[i % PALETTE.length];
+        const monthCols = months.map((_,mi) =>
+          `<td style="text-align:right;color:#94a3b8">
+            <span style="color:#60a5fa">${d.natural[mi]}</span> /
+            <span style="color:#fb923c">${d.invited[mi]}</span>
+          </td>`
+        ).join('');
+        return `<tr>
+          <td><span class="loc-dot" style="background:${color}"></span>${loc}</td>
+          ${monthCols}
+          <td style="text-align:right;font-weight:700;color:#60a5fa">${sum(d.natural)}</td>
+          <td style="text-align:right;font-weight:700;color:#fb923c">${sum(d.invited)}</td>
+          <td style="text-align:right;font-weight:700;color:#4ade80">${r ? r.total[3] : '—'}</td>
+          <td style="text-align:right;font-weight:700;color:#4ade80">${r ? r.total[4] : '—'}</td>
+          <td style="text-align:right;font-weight:700;color:#4ade80">${r ? r.total[5] : '—'}</td>
+          <td style="text-align:right;font-weight:700;color:#4ade80">${r ? r.total[6] : '—'}</td>
+          <td style="text-align:right;font-weight:700;color:#4ade80">${r ? r.total[7] : '—'}</td>
+        </tr>`;
+      }).join('')}
+    </tbody>`;
+}
+
+render();
+</script>
+</body>
+</html>
