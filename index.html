@@ -293,8 +293,17 @@
         <div class="chart-sub" style="font-size:11px;color:#475569;margin:2px 0 12px">各據點 4–8月 領牌合計台數</div>
         <div class="cmp-chart-wrap" style="height:200px"><canvas id="cmpReg"></canvas></div>
       </div>
+      <div class="compare-chart-card" style="grid-column:1/-1">
+        <div class="chart-title">🌐 線索客總量比較</div>
+        <div class="chart-sub" style="font-size:11px;color:#475569;margin:2px 0 12px">各據點每月線索客合計</div>
+        <div class="cmp-chart-wrap" style="height:200px"><canvas id="cmpLead"></canvas></div>
+      </div>
       <div class="compare-table-wrap">
-        <div class="chart-title" style="margin-bottom:12px">📋 數據總覽（1–5月合計）</div>
+        <div class="chart-title" style="margin-bottom:12px">🌐 線索客來源比較（1–9月累計）</div>
+        <table class="compare-table" id="cmpLeadTable"></table>
+      </div>
+      <div class="compare-table-wrap">
+        <div class="chart-title" style="margin-bottom:12px">📋 客源數據總覽</div>
         <table class="compare-table" id="cmpTable"></table>
       </div>
     </div>
@@ -555,7 +564,7 @@ function renderRegChart() {
 
 // ══ COMPARE MODE ═════════════════════════════════════
 let selectedLocs = [];
-let cmpNatChart, cmpInvChart, cmpRegChart;
+let cmpNatChart, cmpInvChart, cmpRegChart, cmpLeadChart;
 
 const cmpSearch = document.getElementById('cmpSearch');
 const cmpDropdown = document.getElementById('cmpDropdown');
@@ -628,6 +637,7 @@ function renderCompare() {
   if (cmpNatChart) cmpNatChart.destroy();
   if (cmpInvChart) cmpInvChart.destroy();
   if (cmpRegChart) cmpRegChart.destroy();
+  if (cmpLeadChart) cmpLeadChart.destroy();
 
   const mkDs = (key) => selectedLocs.map((loc, i) => ({
     label: loc,
@@ -730,6 +740,66 @@ function renderCompare() {
           <td style="text-align:right;font-weight:700;color:#4ade80">${r ? r.total[6] : '—'}</td>
           <td style="text-align:right;font-weight:700;color:#4ade80">${r ? r.total[7] : '—'}</td>
           <td style="text-align:right;font-weight:700;color:#4ade80">${r ? (r.total[8] !== undefined ? r.total[8] : '—') : '—'}</td>
+        </tr>`;
+      }).join('')}
+    </tbody>`;
+
+  // Lead compare line chart
+  const chColors = { '官網':'#3b82f6','FB':'#f59e0b','IG':'#ec4899','自建':'#10b981','再購':'#8b5cf6' };
+  cmpLeadChart = new Chart(document.getElementById('cmpLead'), {
+    type: 'line',
+    data: {
+      labels: months,
+      datasets: selectedLocs.map((loc, i) => ({
+        label: loc,
+        data: LEAD_DATA[loc] ? LEAD_DATA[loc].total : Array(9).fill(0),
+        borderColor: PALETTE[i % PALETTE.length],
+        backgroundColor: PALETTE[i % PALETTE.length] + '22',
+        borderWidth: 2.5,
+        pointRadius: 5,
+        pointHoverRadius: 8,
+        pointBackgroundColor: PALETTE[i % PALETTE.length],
+        fill: false,
+        tension: 0.35,
+      }))
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode:'index', intersect:false },
+      plugins: {
+        legend: { position:'bottom', labels:{color:'#94a3b8',font:{size:12},usePointStyle:true,padding:12} },
+        tooltip: { callbacks: { label: c => ` ${c.dataset.label}：${c.parsed.y}` } }
+      },
+      scales: {
+        x: { grid:{color:'#1e293b'}, ticks:{color:'#64748b',font:{size:12}} },
+        y: { beginAtZero:true, grid:{color:'#1e293b'}, ticks:{color:'#64748b',font:{size:11}} }
+      }
+    }
+  });
+
+  // Lead source comparison table
+  const channels = ['官網','FB','IG','自建','再購'];
+  const chColorsArr = ['#3b82f6','#f59e0b','#ec4899','#10b981','#8b5cf6'];
+  const leadsTable = document.getElementById('cmpLeadTable');
+  leadsTable.innerHTML = `
+    <thead><tr>
+      <th>據點</th>
+      ${channels.map((ch,ci)=>`<th style="text-align:right;color:${chColorsArr[ci]}">${ch}</th>`).join('')}
+      <th style="text-align:right;color:#4ade80">合計線索</th>
+      ${months.map(m=>`<th style="text-align:right;color:#94a3b8">${m}</th>`).join('')}
+    </tr></thead>
+    <tbody>
+      ${selectedLocs.map((loc,i) => {
+        const ld = LEAD_DATA[loc];
+        const color = PALETTE[i % PALETTE.length];
+        const chTotals = channels.map(ch => ld ? ld.channels[ch].reduce((a,b)=>a+b,0) : 0);
+        const grandTotal = ld ? ld.total.reduce((a,b)=>a+b,0) : 0;
+        const monthCols = months.map((_,mi) => `<td style="text-align:right;color:#94a3b8">${ld ? ld.total[mi] : 0}</td>`).join('');
+        return `<tr>
+          <td><span class="loc-dot" style="background:${color}"></span>${loc}</td>
+          ${chTotals.map((v,ci)=>`<td style="text-align:right;color:${chColorsArr[ci]};font-weight:600">${v}</td>`).join('')}
+          <td style="text-align:right;font-weight:700;color:#4ade80">${grandTotal}</td>
+          ${monthCols}
         </tr>`;
       }).join('')}
     </tbody>`;
