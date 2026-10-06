@@ -668,36 +668,35 @@ function renderCompare() {
   cmpNatChart = new Chart(document.getElementById('cmpNat'),{ type:'line', data:{labels:months,datasets:mkDs('natural')}, options:cmpOpts });
   cmpInvChart = new Chart(document.getElementById('cmpInv'),{ type:'line', data:{labels:months,datasets:mkDs('invited')}, options:cmpOpts });
 
-  // Reg compare chart (grouped bar: x=locations, datasets=4–9月)
-  const regLabels = selectedLocs;
-  const reg4 = selectedLocs.map(loc => (REG_DATA[loc] ? REG_DATA[loc].total[3] : 0));
-  const reg5 = selectedLocs.map(loc => (REG_DATA[loc] ? REG_DATA[loc].total[4] : 0));
-  const reg6 = selectedLocs.map(loc => (REG_DATA[loc] ? REG_DATA[loc].total[5] : 0));
-  const reg7 = selectedLocs.map(loc => (REG_DATA[loc] ? REG_DATA[loc].total[6] : 0));
-  const reg8 = selectedLocs.map(loc => (REG_DATA[loc] ? REG_DATA[loc].total[7] : 0));
-  const reg9 = selectedLocs.map(loc => (REG_DATA[loc] ? REG_DATA[loc].total[8] : 0));
+  // Reg compare chart (line: x=months 4–9, each line = location)
+  const regMonthLabels = ['4月','5月','6月','7月','8月','9月'];
   cmpRegChart = new Chart(document.getElementById('cmpReg'), {
-    type: 'bar',
+    type: 'line',
     data: {
-      labels: regLabels,
-      datasets: [
-        { label:'4月領牌', data:reg4, backgroundColor:'#10b981cc', borderRadius:4, borderSkipped:false },
-        { label:'5月領牌', data:reg5, backgroundColor:'#34d399cc', borderRadius:4, borderSkipped:false },
-        { label:'6月領牌', data:reg6, backgroundColor:'#06b6d4cc', borderRadius:4, borderSkipped:false },
-        { label:'7月領牌', data:reg7, backgroundColor:'#818cf8cc', borderRadius:4, borderSkipped:false },
-        { label:'8月領牌', data:reg8, backgroundColor:'#f472b6cc', borderRadius:4, borderSkipped:false },
-        { label:'9月領牌', data:reg9, backgroundColor:'#fbbf24cc', borderRadius:4, borderSkipped:false },
-      ]
+      labels: regMonthLabels,
+      datasets: selectedLocs.map((loc, i) => ({
+        label: loc,
+        data: REG_DATA[loc] ? REG_DATA[loc].total.slice(3, 9) : Array(6).fill(0),
+        borderColor: PALETTE[i % PALETTE.length],
+        backgroundColor: PALETTE[i % PALETTE.length] + '22',
+        borderWidth: 2.5,
+        pointRadius: 5,
+        pointHoverRadius: 8,
+        pointBackgroundColor: PALETTE[i % PALETTE.length],
+        fill: false,
+        tension: 0.35,
+      }))
     },
     options: {
-      responsive:true, maintainAspectRatio:false,
-      plugins:{
-        legend:{ position:'bottom', labels:{color:'#94a3b8',font:{size:12},usePointStyle:true,padding:12} },
-        tooltip:{ callbacks:{ label:c=>` ${c.dataset.label}：${c.parsed.y}` } }
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode:'index', intersect:false },
+      plugins: {
+        legend: { position:'bottom', labels:{color:'#94a3b8',font:{size:12},usePointStyle:true,padding:12} },
+        tooltip: { callbacks: { label: c => ` ${c.dataset.label}：${c.parsed.y}` } }
       },
-      scales:{
-        x:{ grid:{display:false}, ticks:{color:'#64748b',font:{size:12}} },
-        y:{ beginAtZero:true, grid:{color:'#1e293b'}, ticks:{color:'#64748b',font:{size:11}} }
+      scales: {
+        x: { grid:{color:'#1e293b'}, ticks:{color:'#64748b',font:{size:12}} },
+        y: { beginAtZero:true, grid:{color:'#1e293b'}, ticks:{color:'#64748b',font:{size:11}} }
       }
     }
   });
